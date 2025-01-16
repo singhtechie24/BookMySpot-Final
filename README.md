@@ -104,8 +104,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-Your Name - [@yourusername](https://twitter.com/yourusername)
-Project Link: [https://github.com/yourusername/bookmyspot](https://github.com/yourusername/bookmyspot)
+Your Name - @Balbir Singh
+Project Link: [https://github.com/singhtechie24/BookMySpot-Final](https://github.com/singhtechie24/BookMySpot-Final)
 
 ## Acknowledgments
 
