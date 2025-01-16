@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSpaceOwner() {
+      let userDoc = get(/databases/(default)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data != null && userDoc.data.role == 'space_owner';
+    }
+
+    function isAdmin() {
+      let userDoc = get(/databases/(default)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data != null && userDoc.data.role == 'admin';
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Rules for spot requests
+    match /spot-requests/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId) && isSpaceOwner();
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Rules for approved spots
+    match /spots/{spotId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow delete: if isAdmin() || (
+        isSpaceOwner() &&
+        get(/databases/(default)/documents/parkingSpots/$(spotId)).data.createdBy == request.auth.uid
+      );
+    }
+  }
+}

@@ -1,0 +1,83 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isSpaceOwner() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'space-owner';
+    }
+    
+    function isUser() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'user';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.uid == resource.data.ownerId ||
+        isAdmin()
+      );
+      allow write: if isAuthenticated();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow write: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Parking spots collection
+    match /parkingSpots/{spotId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && (isAdmin() || isSpaceOwner());
+      allow update, delete: if isAuthenticated() && (
+        isAdmin() ||
+        (isSpaceOwner() && resource.data.ownerId == request.auth.uid)
+      );
+    }
+
+    // Parking spot requests collection
+    match /parkingSpotRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.ownerId ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && isSpaceOwner();
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid == resource.data.ownerId
+      );
+      allow delete: if isAuthenticated() && (
+        isAdmin() ||
+        request.auth.uid == resource.data.ownerId
+      );
+    }
+
+    // Geocoding cache collection
+    match /geocodeCache/{cacheId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && 
+        request.resource.data.keys().hasAll(['address', 'location', 'timestamp']) &&
+        request.resource.data.location is map &&
+        request.resource.data.location.keys().hasAll(['lat', 'lng']) &&
+        request.resource.data.location.lat is number &&
+        request.resource.data.location.lng is number &&
+        request.resource.data.timestamp is timestamp;
+    }
+  }
+} 
